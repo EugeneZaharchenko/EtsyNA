@@ -1,7 +1,7 @@
 [project]
 name = "etsyna"
 version = "0.1.0"
-description = "Add your description here"
+description = "Etsy Niche Analytics Pipeline: FastAPI-based backend service that collects, stores, and analyzes marketplace data to identify profitable niches, track competition, detect trends, and predict seasonal demand for creative products"
 requires-python = ">=3.12"
 dependencies = [
     "ruff>=0.15.4",
