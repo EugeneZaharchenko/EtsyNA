@@ -16,7 +16,7 @@ from contextlib import contextmanager
 
 from loguru import logger
 
-from config import settings
+from config import settings, PROJECT_ROOT
 
 
 # ──────────────────────────────────────────────
@@ -164,9 +164,12 @@ class Database:
             conn.close()
 
     def init_schema(self):
-        """Create all tables if they don't exist."""
-        with self.connection() as conn:
-            conn.executescript(SCHEMA_SQL)
+        """Apply all pending Alembic migrations to bring the schema up to date."""
+        from alembic.config import Config
+        from alembic import command
+
+        alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
+        command.upgrade(alembic_cfg, "head")
         logger.info(f"Database initialized at {self.db_path}")
 
     # ──────────────────────────────────────────

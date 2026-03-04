@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 from loguru import logger
 
-from config import settings
+from config import settings, PROJECT_ROOT
 from db import db
 from research import NicheFinder, TrendAnalyzer
 from monitor import CompetitorTracker
@@ -125,6 +125,30 @@ def init():
     # Prompt to add competitors
     console.print("\n📝 Add competitor shops with:", style="yellow")
     console.print('   python main.py add-competitor SHOP_ID "Shop Name" "notes"')
+
+
+@cli.command("db-upgrade")
+@click.argument("revision", default="head")
+def db_upgrade(revision):
+    """Run pending database migrations (default: upgrade to latest)."""
+    from alembic.config import Config
+    from alembic import command
+
+    alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
+    command.upgrade(alembic_cfg, revision)
+    console.print(f"Database upgraded to {revision}", style="green")
+
+
+@cli.command("db-downgrade")
+@click.argument("revision", default="-1")
+def db_downgrade(revision):
+    """Roll back database migrations (default: one step back)."""
+    from alembic.config import Config
+    from alembic import command
+
+    alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
+    command.downgrade(alembic_cfg, revision)
+    console.print(f"Database downgraded to {revision}", style="green")
 
 
 @cli.command("add-competitor")

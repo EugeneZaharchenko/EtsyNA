@@ -24,6 +24,14 @@ python main.py report            # Show top 20 opportunities by niche score
 python main.py upload FILE [--dry]  # Upload listings from JSON (--dry for validation only)
 python main.py daily             # Full pipeline: trends → research → competitors
 python main.py add-competitor SHOP_ID "Name" "notes"  # Add competitor shop
+python main.py db-upgrade [REV]   # Apply migrations (default: head)
+python main.py db-downgrade [REV] # Roll back migrations (default: -1)
+
+# Alembic CLI (for creating new migrations)
+uv run alembic revision -m "description"  # Create new migration
+uv run alembic current                    # Show current DB revision
+uv run alembic history                    # Show migration history
+uv run alembic stamp head                 # Mark existing DB as up-to-date
 
 # Lint
 ruff check .
@@ -39,7 +47,7 @@ No test framework is configured yet.
 **Module structure** (each module exposes a singleton instance):
 
 - `config/` — Dataclass-based settings (`EtsyConfig`, `DatabaseConfig`, `LogConfig`). Loads from `.env` via python-dotenv. Singleton: `settings`.
-- `db/` — Raw SQLite3 with WAL mode, context manager connections, no ORM. 8 tables + junction table + indices. Singleton: `db`.
+- `db/` — Raw SQLite3 with WAL mode, context manager connections, no ORM. Schema managed by Alembic migrations (`migrations/versions/`). Singleton: `db`.
 - `etsy_api/` — Etsy API v3 client with auto-retry on 401, rate limiting, offset-based pagination. Singleton: `etsy_client`.
 - `etsy_api/auth.py` — OAuth 2.0 PKCE flow with local HTTP callback server.
 - `research/` — Three classes: `TrendAnalyzer` (Google Trends via pytrends), `EtsyResearcher` (marketplace metrics + autocomplete), `NicheFinder` (combines both, computes opportunity score).
@@ -55,7 +63,7 @@ Where demand = Google Trends interest, engagement = avg favorites, competition =
 ## Conventions
 
 - No type hints (unless Pydantic is introduced)
-- Raw SQL preferred over ORM for transparency
+- Raw SQL preferred over ORM for transparency — Alembic migrations use `op.execute()` with raw SQL, not SQLAlchemy models
 - Singleton pattern for config, db, and API client instances
 - Rate limiting built into all API-calling code (0.5s–2s delays)
 - Graceful degradation: API failures return empty results with logged warnings
