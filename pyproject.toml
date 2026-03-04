@@ -4,5 +4,22 @@ version = "0.1.0"
 description = "Etsy Niche Analytics Pipeline: FastAPI-based backend service that collects, stores, and analyzes marketplace data to identify profitable niches, track competition, detect trends, and predict seasonal demand for creative products"
 requires-python = ">=3.12"
 dependencies = [
+    "click>=8.3.1",
+    "loguru>=0.7.3",
+    "pandas>=3.0.1",
+    "python-dotenv>=1.2.2",
+    "pytrends>=4.9.2",
+    "requests>=2.32.5",
+    "requests-oauthlib>=2.0.0",
+    "rich>=14.3.3",
     "ruff>=0.15.4",
+    "schedule>=1.2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "alembic>=1.18.4",
+]
+stock = [
+    "paramiko>=4.0.0",
 ]
