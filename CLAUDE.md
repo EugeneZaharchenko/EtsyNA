@@ -49,16 +49,47 @@ No test framework is configured yet.
 - `config/` — Dataclass-based settings (`EtsyConfig`, `DatabaseConfig`, `LogConfig`). Loads from `.env` via python-dotenv. Singleton: `settings`.
 - `db/` — Raw SQLite3 with WAL mode, context manager connections, no ORM. Schema managed by Alembic migrations (`migrations/versions/`). Singleton: `db`.
 - `etsy_api/` — Etsy API v3 client with auto-retry on 401, rate limiting, offset-based pagination. Singleton: `etsy_client`.
-- `etsy_api/auth.py` — OAuth 2.0 PKCE flow with local HTTP callback server.
-- `research/` — Three classes: `TrendAnalyzer` (Google Trends via pytrends), `EtsyResearcher` (marketplace metrics + autocomplete), `NicheFinder` (combines both, computes opportunity score).
+- `etsy_api/auth.py` — OAuth 2.0 PKCE flow with local HTTP callback server on port 3003. **Tokens must be saved to `.env` manually after the auth flow** — there is no auto-persistence.
+- `research/` — Three classes: `TrendAnalyzer` (Google Trends via pytrends, max 5 keywords/batch, 2s delays), `EtsyResearcher` (marketplace metrics + autocomplete), `NicheFinder` (combines both, computes opportunity score).
 - `monitor/` — `CompetitorTracker`: daily shop snapshots, new listing detection, tag frequency analysis.
 - `uploader/` — `ListingUploader`: validates → creates draft → uploads images → uploads files → activates. `ListingDraft` dataclass. Supports dry-run.
+
+**DB access pattern** — always use the context manager; it commits on success and rolls back on error:
+```python
+with db.connection() as conn:
+    conn.execute("INSERT INTO ...")
+```
 
 **Niche opportunity score formula**:
 ```
 score = (demand * sqrt(engagement)) / (competition^0.3 + 1)
 ```
-Where demand = Google Trends interest, engagement = avg favorites, competition = listing count.
+Where demand = Google Trends interest (0-100), engagement = avg favorites per listing, competition = listing count.
+
+**Data flow**:
+```
+[trends]      → TrendAnalyzer → db.save_trend_batch()
+[research]    → NicheFinder → TrendAnalyzer + EtsyResearcher → db.save_niche_score()
+[competitors] → CompetitorTracker → etsy_client → db.save_competitor_snapshot()
+[discover]    → NicheFinder.discover_keywords() → autocomplete + related queries → new keywords
+[upload]      → load_drafts_from_json() → ListingUploader (validate→draft→images→files→activate)
+[daily]       → runs trends → research → competitors sequentially
+```
+
+**Upload JSON format** (for `python main.py upload FILE`):
+```json
+[{
+  "title": "...",
+  "description": "...",
+  "price": 3.50,
+  "tags": ["tag1", "tag2"],
+  "taxonomy_id": 2078,
+  "image_paths": ["preview.jpg"],
+  "file_paths": ["product.zip"]
+}]
+```
+
+See `ARCHITECTURE.md` for the planned FastAPI + PostgreSQL evolution.
 
 ## Conventions
 
