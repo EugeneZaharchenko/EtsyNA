@@ -15,7 +15,6 @@ Usage:
 """
 
 import sys
-import json
 
 import click
 from rich.console import Console
@@ -35,6 +34,7 @@ console = Console()
 #  Logging Setup
 # ──────────────────────────────────────────────
 
+
 def setup_logging():
     settings.logging.ensure_directory()
     logger.remove()  # Remove default handler
@@ -50,6 +50,7 @@ def setup_logging():
 # ──────────────────────────────────────────────
 #  CLI Commands
 # ──────────────────────────────────────────────
+
 
 @click.group()
 def cli():
@@ -68,12 +69,13 @@ def auth():
         return
 
     from etsy_api.auth import EtsyAuth
+
     auth_handler = EtsyAuth()
     tokens = auth_handler.run_auth_flow()
     if tokens:
         console.print("\n✅ Add these to your .env file:\n", style="green bold")
-        console.print(f'ETSY_ACCESS_TOKEN={tokens["access_token"]}')
-        console.print(f'ETSY_REFRESH_TOKEN={tokens["refresh_token"]}')
+        console.print(f"ETSY_ACCESS_TOKEN={tokens['access_token']}")
+        console.print(f"ETSY_REFRESH_TOKEN={tokens['refresh_token']}")
 
 
 @cli.command()
@@ -84,36 +86,62 @@ def init():
 
     # Seed keywords relevant to WatercolorAnn
     seed_keywords = [
-        # Core products
-        ("watercolor clipart", "clipart"),
-        ("botanical clipart", "clipart"),
-        ("floral clipart png", "clipart"),
-        ("watercolor seamless pattern", "patterns"),
-        ("botanical seamless pattern", "patterns"),
-        ("floral digital paper", "patterns"),
-        # Nature subjects
-        ("watercolor birds clipart", "birds"),
-        ("watercolor insects clipart", "insects"),
-        ("watercolor animals clipart", "animals"),
-        ("butterfly clipart png", "insects"),
-        ("wildflower clipart", "clipart"),
-        # Use-case keywords
-        ("wedding invitation clipart", "use-case"),
-        ("scrapbook digital elements", "use-case"),
-        ("commercial use clipart", "use-case"),
-        ("printable wall art botanical", "use-case"),
-        # Food themes
-        ("watercolor food clipart", "food"),
-        ("artisan bread clipart", "food"),
-        ("watercolor fruit illustration", "food"),
-        # Competitor-style terms
-        ("boho floral clipart", "style"),
-        ("cottagecore clipart", "style"),
-        ("whimsical botanical art", "style"),
-        # Bundles
-        ("clipart mega bundle", "bundles"),
-        ("digital download bundle", "bundles"),
-    ]
+    # Core Products (Refined and Expanded)
+    ("watercolor clipart", "clipart_main"),
+    ("botanical watercolor clipart", "clipart_botanical"),
+    ("floral watercolor clipart png", "clipart_floral"),
+    ("watercolor seamless pattern", "patterns_main"),
+    ("botanical seamless pattern", "patterns_botanical"),
+    ("floral digital paper", "patterns_floral"),
+    ("watercolor elements", "clipart_general"), # Broader term for individual art pieces
+    ("digital watercolor art", "art_prints"), # If selling prints
+    ("watercolor textures", "patterns_textures"), # For background or design elements
+
+    # Nature Subjects (Enhanced with "Watercolor")
+    ("watercolor birds clipart", "nature_birds"),
+    ("watercolor insects clipart", "nature_insects"),
+    ("watercolor animals clipart", "nature_animals"),
+    ("watercolor butterfly png", "nature_insects"),
+    ("watercolor wildflower clipart", "nature_flowers"),
+    ("watercolor leaves clipart", "nature_foliage"), # Added for detail
+
+    # Use-Case Keywords (More specific and varied)
+    ("watercolor wedding invitation clipart", "usecase_wedding"),
+    ("digital scrapbook elements watercolor", "usecase_scrapbooking"),
+    ("commercial use watercolor clipart", "usecase_commercial"),
+    ("printable botanical wall art watercolor", "usecase_decor"),
+    ("diy stationery watercolor", "usecase_crafts"), # Crafting focus
+    ("greeting card design watercolor", "usecase_cards"), # Card making
+    ("planner stickers watercolor", "usecase_planners"), # Planner specific
+
+    # Food Themes (Keep as is, good niche)
+    ("watercolor food clipart", "food_main"),
+    ("artisan bread watercolor clipart", "food_baked_goods"),
+    ("watercolor fruit illustration", "food_fruits"),
+    ("watercolor vegetable clipart", "food_vegetables"), # Added for variety
+
+    # Style Keywords (Good variety, consistent with watercolor)
+    ("boho watercolor floral clipart", "style_boho"),
+    ("cottagecore watercolor clipart", "style_cottagecore"),
+    ("whimsical botanical watercolor art", "style_whimsical"),
+    ("rustic watercolor clipart", "style_rustic"), # Often pairs with boho/cottagecore
+    ("modern watercolor clipart", "style_modern"), # For contemporary designs
+    ("vintage watercolor art", "style_vintage"), # Could cover specific aesthetics
+
+    # Bundles (More descriptive)
+    ("watercolor clipart mega bundle", "bundles_clipart"),
+    ("watercolor digital download bundle", "bundles_general"),
+    ("watercolor pattern bundle", "bundles_patterns"), # Specific pattern bundles
+
+    # Additional General Terms (Broaden reach)
+    ("digital download", "product_type"),
+    ("png graphics", "file_format"),
+    ("instant download", "delivery_method"),
+    ("hand painted watercolor", "creation_method"),
+    ("high resolution clipart", "quality_descriptor"),
+    ("transparent background png", "file_feature"),
+]
+
 
     count = 0
     for keyword, category in seed_keywords:
@@ -189,7 +217,9 @@ def trends():
     kw_list = [kw["keyword"] for kw in keywords]
     kw_ids = {kw["keyword"]: kw["id"] for kw in keywords}
 
-    console.print(f"Fetching Google Trends for {len(kw_list)} keywords...", style="cyan")
+    console.print(
+        f"Fetching Google Trends for {len(kw_list)} keywords...", style="cyan"
+    )
     data = analyzer.get_interest_over_time(kw_list)
 
     if data.empty:
@@ -256,7 +286,9 @@ def discover():
 def upload(json_file: str | None, dry: bool):
     """Upload listings from a JSON file."""
     if not json_file:
-        console.print("Usage: python main.py upload listings.json [--dry]", style="yellow")
+        console.print(
+            "Usage: python main.py upload listings.json [--dry]", style="yellow"
+        )
         console.print("\nSee uploader/__init__.py for JSON format.", style="dim")
         return
 
@@ -279,9 +311,7 @@ def report():
         console.print("No data yet. Run 'research' first.", style="yellow")
         return
 
-    _show_opportunity_table(
-        [dict(o) for o in opportunities]
-    )
+    _show_opportunity_table([dict(o) for o in opportunities])
 
 
 @cli.command()
@@ -297,6 +327,7 @@ def daily():
     # Step 1: Trends
     console.print("[1/3] Fetching Google Trends...", style="cyan")
     from click.testing import CliRunner
+
     runner = CliRunner()
     runner.invoke(trends)
 
@@ -314,6 +345,7 @@ def daily():
 # ──────────────────────────────────────────────
 #  Helpers
 # ──────────────────────────────────────────────
+
 
 def _show_opportunity_table(results: list[dict]):
     """Display a rich table of niche opportunities."""

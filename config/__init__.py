@@ -16,19 +16,30 @@ load_dotenv(PROJECT_ROOT / ".env")
 @dataclass
 class EtsyConfig:
     api_key: str = field(default_factory=lambda: os.getenv("ETSY_API_KEY", ""))
-    shared_secret: str = field(default_factory=lambda: os.getenv("ETSY_SHARED_SECRET", ""))
+    shared_secret: str = field(
+        default_factory=lambda: os.getenv("ETSY_SHARED_SECRET", "")
+    )
     shop_id: str = field(default_factory=lambda: os.getenv("ETSY_SHOP_ID", ""))
-    access_token: str = field(default_factory=lambda: os.getenv("ETSY_ACCESS_TOKEN", ""))
-    refresh_token: str = field(default_factory=lambda: os.getenv("ETSY_REFRESH_TOKEN", ""))
+    access_token: str = field(
+        default_factory=lambda: os.getenv("ETSY_ACCESS_TOKEN", "")
+    )
+    refresh_token: str = field(
+        default_factory=lambda: os.getenv("ETSY_REFRESH_TOKEN", "")
+    )
     base_url: str = "https://api.etsy.com/v3"
     oauth_url: str = "https://www.etsy.com/oauth/connect"
     token_url: str = "https://api.etsy.com/v3/public/oauth/token"
     # Scopes needed for full automation
-    scopes: list = field(default_factory=lambda: [
-        "listings_r", "listings_w", "listings_d",
-        "shops_r", "shops_w",
-        "transactions_r",
-    ])
+    scopes: list = field(
+        default_factory=lambda: [
+            "listings_r",
+            "listings_w",
+            "listings_d",
+            "shops_r",
+            "shops_w",
+            "transactions_r",
+        ]
+    )
 
     @property
     def is_configured(self) -> bool:
@@ -43,8 +54,7 @@ class EtsyConfig:
 class DatabaseConfig:
     path: str = field(
         default_factory=lambda: os.getenv(
-            "DATABASE_PATH",
-            str(PROJECT_ROOT / "data" / "etsy_automation.db")
+            "DATABASE_PATH", str(PROJECT_ROOT / "data" / "etsy_automation.db")
         )
     )
 
@@ -58,8 +68,7 @@ class LogConfig:
     level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
     log_file: str = field(
         default_factory=lambda: os.getenv(
-            "LOG_FILE",
-            str(PROJECT_ROOT / "logs" / "pipeline.log")
+            "LOG_FILE", str(PROJECT_ROOT / "logs" / "pipeline.log")
         )
     )
 
@@ -70,6 +79,7 @@ class LogConfig:
 @dataclass
 class Settings:
     """Main settings container — single source of truth."""
+
     etsy: EtsyConfig = field(default_factory=EtsyConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     logging: LogConfig = field(default_factory=LogConfig)

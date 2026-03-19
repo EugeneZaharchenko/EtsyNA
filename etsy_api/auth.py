@@ -185,10 +185,10 @@ class EtsyAuth:
         thread = Thread(target=server.handle_request)
         thread.start()
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Opening Etsy authorization page in your browser...")
         print(f"If it doesn't open, visit:\n{auth_url}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         webbrowser.open(auth_url)
 
         thread.join(timeout=120)  # Wait up to 2 minutes
@@ -224,5 +224,5 @@ if __name__ == "__main__":
     tokens = auth.run_auth_flow()
     if tokens:
         print("\n✅ Auth successful! Add these to your .env file:\n")
-        print(f'ETSY_ACCESS_TOKEN={tokens["access_token"]}')
-        print(f'ETSY_REFRESH_TOKEN={tokens["refresh_token"]}')
+        print(f"ETSY_ACCESS_TOKEN={tokens['access_token']}")
+        print(f"ETSY_REFRESH_TOKEN={tokens['refresh_token']}")

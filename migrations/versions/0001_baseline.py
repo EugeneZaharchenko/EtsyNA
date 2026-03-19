@@ -4,6 +4,7 @@ Revision ID: 0001
 Revises: None
 Create Date: 2026-03-04
 """
+
 from alembic import op
 
 
@@ -125,7 +126,9 @@ def upgrade():
     op.execute("CREATE INDEX idx_google_trends_date ON google_trends(date)")
     op.execute("CREATE INDEX idx_etsy_listings_shop ON etsy_listings(shop_name)")
     op.execute("CREATE INDEX idx_niche_scores_keyword ON niche_scores(keyword_id)")
-    op.execute("CREATE INDEX idx_niche_scores_opportunity ON niche_scores(opportunity_score DESC)")
+    op.execute(
+        "CREATE INDEX idx_niche_scores_opportunity ON niche_scores(opportunity_score DESC)"
+    )
 
 
 def downgrade():

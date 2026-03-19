@@ -27,6 +27,7 @@ class ListingDraft:
     Represents a listing ready to be uploaded.
     Prepare these from a JSON file or build programmatically.
     """
+
     title: str
     description: str
     price: float
@@ -34,12 +35,14 @@ class ListingDraft:
     taxonomy_id: int
     # Paths to local files
     preview_images: list[str] = field(default_factory=list)  # Mockups/previews
-    digital_files: list[str] = field(default_factory=list)   # Actual download files (PNGs, ZIPs)
+    digital_files: list[str] = field(
+        default_factory=list
+    )  # Actual download files (PNGs, ZIPs)
     # Etsy-required metadata
-    quantity: int = 999          # Digital products: set high
+    quantity: int = 999  # Digital products: set high
     who_made: str = "i_did"
     when_made: str = "made_to_order"
-    is_supply: bool = True       # Clipart = supply
+    is_supply: bool = True  # Clipart = supply
     is_digital: bool = True
     shipping_profile_id: int | None = None  # Required — get from your shop
 
@@ -154,7 +157,9 @@ class ListingUploader:
             listing_id = self.upload_listing(draft, dry_run=dry_run)
 
             if listing_id:
-                results["success"].append({"title": draft.title, "listing_id": listing_id})
+                results["success"].append(
+                    {"title": draft.title, "listing_id": listing_id}
+                )
             else:
                 results["failed"].append({"title": draft.title})
 

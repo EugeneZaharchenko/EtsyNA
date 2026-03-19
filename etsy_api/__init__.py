@@ -34,11 +34,13 @@ class EtsyClient:
 
     def _update_headers(self):
         """Set auth headers on the session."""
-        self.session.headers.update({
-            "x-api-key": self.config.api_key,
-            "Authorization": f"Bearer {self.config.access_token}",
-            "Content-Type": "application/json",
-        })
+        self.session.headers.update(
+            {
+                "x-api-key": f"{self.config.api_key}:{self.config.shared_secret}",
+                "Authorization": f"Bearer {self.config.access_token}",
+                "Content-Type": "application/json",
+            }
+        )
 
     # ──────────────────────────────────────────
     #  Core HTTP Methods
@@ -127,9 +129,7 @@ class EtsyClient:
 
     def get_shop_listings(self, shop_id: str, state: str = "active") -> list[dict]:
         """Get all listings for a shop."""
-        return self.get_all_pages(
-            f"/application/shops/{shop_id}/listings/{state}"
-        )
+        return self.get_all_pages(f"/application/shops/{shop_id}/listings/{state}")
 
     # ──────────────────────────────────────────
     #  Search Operations
@@ -147,7 +147,9 @@ class EtsyClient:
         }
         return self.get("/application/listings/active", params=search_params)
 
-    def get_listing_details(self, listing_id: str, includes: list[str] | None = None) -> dict:
+    def get_listing_details(
+        self, listing_id: str, includes: list[str] | None = None
+    ) -> dict:
         """Get detailed info about a specific listing."""
         params = {}
         if includes:

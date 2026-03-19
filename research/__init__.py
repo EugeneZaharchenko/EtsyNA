@@ -50,7 +50,7 @@ class TrendAnalyzer:
         all_data = pd.DataFrame()
 
         for i in range(0, len(keywords), batch_size):
-            batch = keywords[i:i + batch_size]
+            batch = keywords[i : i + batch_size]
             logger.debug(f"Fetching trends for: {batch}")
 
             try:
@@ -240,7 +240,7 @@ class NicheFinder:
         # Higher score = better opportunity
         # Formula balances demand, engagement, and competition
         opportunity_score = round(
-            (demand * (engagement ** 0.5)) / (competition ** 0.3 + 1),
+            (demand * (engagement**0.5)) / (competition**0.3 + 1),
             2,
         )
 
@@ -309,5 +309,7 @@ class NicheFinder:
 
         # Remove seeds from discovered
         discovered -= set(seed_keywords)
-        logger.info(f"Discovered {len(discovered)} new keywords from {len(seed_keywords)} seeds")
+        logger.info(
+            f"Discovered {len(discovered)} new keywords from {len(seed_keywords)} seeds"
+        )
         return sorted(discovered)

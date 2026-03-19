@@ -37,7 +37,9 @@ class CompetitorTracker:
             total_favorites = 0
             for listing in listings:
                 if "price" in listing:
-                    price = float(listing["price"]["amount"]) / listing["price"]["divisor"]
+                    price = (
+                        float(listing["price"]["amount"]) / listing["price"]["divisor"]
+                    )
                     prices.append(price)
                 total_favorites += listing.get("num_favorers", 0)
 
@@ -142,7 +144,5 @@ class CompetitorTracker:
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
         # Sort by frequency
-        sorted_tags = dict(
-            sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
-        )
+        sorted_tags = dict(sorted(tag_counts.items(), key=lambda x: x[1], reverse=True))
         return sorted_tags

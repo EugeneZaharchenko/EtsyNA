@@ -135,6 +135,7 @@ CREATE INDEX IF NOT EXISTS idx_niche_scores_opportunity ON niche_scores(opportun
 #  Database Connection Manager
 # ──────────────────────────────────────────────
 
+
 class Database:
     """SQLite database manager with context-manager support."""
 

@@ -24,5 +24,33 @@
       "Bash(**/.env)",
       "Read(**/.env)",
       "Write(**/.env)"
+    ],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[[ \"$FILE_PATH\" == *.py ]] && ruff check --fix \"$FILE_PATH\" && ruff format \"$FILE_PATH\" || true"
+          },
+          {
+            "type": "command",
+            "command": "[[ \"$FILE_PATH\" == *.js ]] && npx eslint --fix \"$FILE_PATH\" && npx prettier --write \"$FILE_PATH\" || true"
+          },
+          {
+            "type": "command",
+            "command": "[[ \"$FILE_PATH\" == *.css ]] && npx prettier --write \"$FILE_PATH\" || true"
+          },
+          {
+            "type": "command",
+            "command": "[[ \"$FILE_PATH\" == *.html ]] && npx prettier --write \"$FILE_PATH\" || true"
+          }
+        ]
+      }
     ]
+  },
+  "outputStyle": "default",
+  "alwaysThinkingEnabled": true
 }
+
