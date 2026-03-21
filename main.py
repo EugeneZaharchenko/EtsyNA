@@ -315,6 +315,17 @@ def report():
 
 
 @cli.command()
+def cleanup():
+    """Delete niche_scores rows from failed API calls (zero listings and zero price)."""
+    with db.connection() as conn:
+        cursor = conn.execute(
+            "DELETE FROM niche_scores WHERE etsy_listing_count = 0 AND avg_price = 0"
+        )
+        deleted = cursor.rowcount
+    console.print(f"Deleted {deleted} rows from niche_scores", style="green")
+
+
+@cli.command()
 def daily():
     """
     Run the full daily pipeline:

@@ -302,6 +302,12 @@ class Database:
                 """SELECT ns.*, k.keyword, k.category
                    FROM niche_scores ns
                    JOIN keywords k ON k.id = ns.keyword_id
+                   JOIN (
+                       SELECT keyword_id, MAX(calculated_at) AS max_calc
+                       FROM niche_scores
+                       GROUP BY keyword_id
+                   ) latest ON ns.keyword_id = latest.keyword_id
+                              AND ns.calculated_at = latest.max_calc
                    ORDER BY ns.opportunity_score DESC
                    LIMIT ?""",
                 (limit,),
