@@ -10,8 +10,6 @@ Why raw SQL instead of an ORM?
 """
 
 import sqlite3
-from pathlib import Path
-from datetime import datetime, timezone
 from contextlib import contextmanager
 
 from loguru import logger
@@ -282,8 +280,8 @@ class Database:
                 """INSERT INTO niche_scores
                    (keyword_id, etsy_listing_count, avg_favorites,
                     avg_price, google_trend_score, competition_ratio,
-                    opportunity_score)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    opportunity_score, verdict, signals)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     keyword_id,
                     metrics.get("etsy_listing_count", 0),
@@ -292,6 +290,8 @@ class Database:
                     metrics.get("google_trend_score", 0),
                     metrics.get("competition_ratio", 0),
                     metrics.get("opportunity_score", 0),
+                    metrics.get("verdict"),
+                    metrics.get("signals"),
                 ),
             )
 

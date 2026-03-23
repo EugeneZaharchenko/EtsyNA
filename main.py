@@ -26,6 +26,7 @@ from db import db
 from research import NicheFinder, TrendAnalyzer
 from monitor import CompetitorTracker
 from uploader import ListingUploader, load_drafts_from_json
+from analyze import KeywordAnalyzer
 
 console = Console()
 
@@ -54,7 +55,7 @@ def setup_logging():
 
 @click.group()
 def cli():
-    """🎨 Etsy Automation Pipeline for WatercolorAnn"""
+    """Etsy Automation Pipeline for WatercolorAnn"""
     setup_logging()
 
 
@@ -110,7 +111,6 @@ def init():
     ("digital scrapbook elements watercolor", "usecase_scrapbooking"),
     ("commercial use watercolor clipart", "usecase_commercial"),
     ("printable botanical wall art watercolor", "usecase_decor"),
-    ("diy stationery watercolor", "usecase_crafts"), # Crafting focus
     ("greeting card design watercolor", "usecase_cards"), # Card making
     ("planner stickers watercolor", "usecase_planners"), # Planner specific
 
@@ -141,7 +141,6 @@ def init():
     ("high resolution clipart", "quality_descriptor"),
     ("transparent background png", "file_feature"),
 ]
-
 
     count = 0
     for keyword, category in seed_keywords:
@@ -304,25 +303,54 @@ def upload(json_file: str | None, dry: bool):
 
 
 @cli.command()
-def report():
+@click.argument("keyword")
+def analyze(keyword):
+    """Deep analysis of a single keyword with verdict, signals, and HTML report."""
+    analyzer = KeywordAnalyzer()
+    analyzer.run(keyword)
+
+
+@cli.command()
+@click.option("--html", is_flag=True, help="Generate HTML report with Plotly chart")
+def report(html):
     """Show top niche opportunities from latest analysis."""
     opportunities = db.get_top_opportunities(limit=20)
     if not opportunities:
         console.print("No data yet. Run 'research' first.", style="yellow")
         return
 
-    _show_opportunity_table([dict(o) for o in opportunities])
+    rows = [dict(o) for o in opportunities]
+
+    if html:
+        _generate_report_html(rows)
+    else:
+        _show_opportunity_table(rows)
 
 
 @cli.command()
-def cleanup():
+@click.option("--yes", is_flag=True, help="Skip confirmation prompt")
+def cleanup(yes):
     """Delete niche_scores rows from failed API calls (zero listings and zero price)."""
     with db.connection() as conn:
-        cursor = conn.execute(
+        row = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM niche_scores WHERE etsy_listing_count = 0 AND avg_price = 0"
+        ).fetchone()
+        count = row["cnt"] if row else 0
+
+    if count == 0:
+        console.print("No failed rows to clean up.", style="yellow")
+        return
+
+    console.print(f"Found {count} rows with zero listings and zero price.", style="cyan")
+    if not yes and not click.confirm("Delete these rows?"):
+        console.print("Aborted.", style="yellow")
+        return
+
+    with db.connection() as conn:
+        conn.execute(
             "DELETE FROM niche_scores WHERE etsy_listing_count = 0 AND avg_price = 0"
         )
-        deleted = cursor.rowcount
-    console.print(f"Deleted {deleted} rows from niche_scores", style="green")
+    console.print(f"Deleted {count} rows from niche_scores", style="green")
 
 
 @cli.command()
@@ -383,6 +411,87 @@ def _show_opportunity_table(results: list[dict]):
         )
 
     console.print(table)
+
+
+def _generate_report_html(rows: list[dict]):
+    """Generate an HTML report with a Plotly bar chart and styled data table."""
+    import webbrowser
+    import plotly.graph_objects as go
+
+    reports_dir = PROJECT_ROOT / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_path = reports_dir / "niche_report.html"
+
+    # Sort ascending so highest score is at the top of horizontal bar chart
+    sorted_rows = sorted(rows, key=lambda r: r.get("opportunity_score", 0))
+
+    keywords = [r.get("keyword", "?") for r in sorted_rows]
+    scores = [r.get("opportunity_score", 0) for r in sorted_rows]
+    colors = [
+        "#2ECC71" if s >= 10 else "#F39C12" if s >= 5 else "#E74C3C"
+        for s in scores
+    ]
+
+    fig = go.Figure(go.Bar(
+        x=scores,
+        y=keywords,
+        orientation="h",
+        marker_color=colors,
+        text=[f"{s:.1f}" for s in scores],
+        textposition="outside",
+    ))
+    fig.update_layout(
+        title="Top 20 Keywords by Opportunity Score",
+        xaxis_title="Opportunity Score",
+        height=max(500, len(rows) * 32),
+        margin={"l": 250},
+        template="plotly_white",
+    )
+    chart_html = fig.to_html(full_html=False, include_plotlyjs="cdn")
+
+    # Build HTML table (use original descending order)
+    table_rows = ""
+    for i, r in enumerate(rows, 1):
+        score = r.get("opportunity_score", 0)
+        color = "#2ECC71" if score >= 10 else "#F39C12" if score >= 5 else "#E74C3C"
+        table_rows += f"""<tr>
+            <td>{i}</td>
+            <td>{r.get('keyword', '?')}</td>
+            <td style="color:{color};font-weight:bold">{score:.1f}</td>
+            <td>{r.get('google_trend_score', '?')}</td>
+            <td>{r.get('etsy_listing_count', '?'):,}</td>
+            <td>{r.get('avg_favorites', 0):.0f}</td>
+            <td>${r.get('avg_price', 0):.2f}</td>
+        </tr>"""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Niche Opportunity Report</title>
+<style>
+    body {{ font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; }}
+    h1 {{ color: #2C3E50; }}
+    table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
+    th {{ background: #2C3E50; color: white; padding: 10px 14px; text-align: left; }}
+    td {{ padding: 8px 14px; border-bottom: 1px solid #ddd; }}
+    tr:hover {{ background: #f5f5f5; }}
+</style>
+</head>
+<body>
+<h1>Niche Opportunity Report</h1>
+{chart_html}
+<h2>Detailed Metrics</h2>
+<table>
+<tr><th>#</th><th>Keyword</th><th>Score</th><th>Trend</th><th>Listings</th><th>Avg Fav</th><th>Avg Price</th></tr>
+{table_rows}
+</table>
+</body>
+</html>"""
+
+    report_path.write_text(html, encoding="utf-8")
+    console.print(f"Report saved: {report_path}", style="green")
+    webbrowser.open(report_path.as_uri())
 
 
 if __name__ == "__main__":

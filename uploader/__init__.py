@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 from loguru import logger
 
 from etsy_api import etsy_client
-from db import db
 
 
 @dataclass

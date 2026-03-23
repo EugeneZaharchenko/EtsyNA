@@ -10,8 +10,6 @@ Combines these into a niche opportunity score.
 """
 
 import time
-import json
-from datetime import datetime
 
 import pandas as pd
 from pytrends.request import TrendReq
@@ -167,6 +165,7 @@ class EtsyResearcher:
                 "avg_favorites": sum(favorites) / len(favorites) if favorites else 0,
                 "price_range": (min(prices), max(prices)) if prices else (0, 0),
                 "top_tags": top_tags,
+                "prices": prices,
             }
 
         except Exception as e:

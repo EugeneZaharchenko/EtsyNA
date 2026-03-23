@@ -9,7 +9,6 @@ Monitors competing Etsy shops over time to detect:
 
 import json
 import time
-from datetime import datetime
 
 from loguru import logger
 

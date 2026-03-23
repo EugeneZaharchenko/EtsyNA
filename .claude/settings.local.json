@@ -17,14 +17,13 @@
       "mcp__plugin_playwright_playwright__browser_take_screenshot",
       "mcp__plugin_playwright_playwright__browser_hover",
       "mcp__plugin_playwright_playwright__browser_snapshot",
-      "mcp__plugin_playwright_playwright__browser_console_messages"
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "Bash(uv add:*)",
+      "Bash(uv run:*)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python main.py --help)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''main.py''\\).read\\(\\)\\); print\\(''OK''\\)\")"
     ]
   },
-  "deny": [
-      "Bash(**/.env)",
-      "Read(**/.env)",
-      "Write(**/.env)"
-    ],
   "hooks": {
     "PostToolUse": [
       {
@@ -51,6 +50,10 @@
     ]
   },
   "outputStyle": "default",
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "deny": [
+    "Bash(**/.env)",
+    "Read(**/.env)",
+    "Write(**/.env)"
+  ]
 }
-
