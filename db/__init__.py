@@ -295,6 +295,57 @@ class Database:
                 ),
             )
 
+    def save_gap_score(self, keyword_id, trend_growth_pct, listing_count, gap_score, classification):
+        with self.connection() as conn:
+            conn.execute(
+                """INSERT INTO gap_scores
+                   (keyword_id, trend_growth_pct, listing_count, gap_score, classification)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (keyword_id, trend_growth_pct, listing_count, gap_score, classification),
+            )
+
+    def get_trend_data_for_keyword(self, keyword_id):
+        """Get Google Trends data for a keyword, ordered by date."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """SELECT date, interest_score FROM google_trends
+                   WHERE keyword_id = ?
+                   ORDER BY date""",
+                (keyword_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_latest_niche_score(self, keyword_id):
+        """Get the most recent niche_scores row for a keyword."""
+        with self.connection() as conn:
+            row = conn.execute(
+                """SELECT * FROM niche_scores
+                   WHERE keyword_id = ?
+                   ORDER BY calculated_at DESC
+                   LIMIT 1""",
+                (keyword_id,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def add_to_blocklist(self, keyword, reason="rejected"):
+        with self.connection() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO discovery_blocklist (keyword, reason) VALUES (?, ?)",
+                (keyword.lower().strip(), reason),
+            )
+
+    def add_to_blocklist_batch(self, keywords, reason="rejected"):
+        with self.connection() as conn:
+            conn.executemany(
+                "INSERT OR IGNORE INTO discovery_blocklist (keyword, reason) VALUES (?, ?)",
+                [(kw.lower().strip(), reason) for kw in keywords],
+            )
+
+    def get_blocklist(self):
+        with self.connection() as conn:
+            rows = conn.execute("SELECT keyword FROM discovery_blocklist").fetchall()
+            return {row["keyword"] for row in rows}
+
     def get_top_opportunities(self, limit: int = 20) -> list[dict]:
         """Get keywords ranked by opportunity score."""
         with self.connection() as conn:

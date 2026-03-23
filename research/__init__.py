@@ -9,14 +9,22 @@ Data sources:
 Combines these into a niche opportunity score.
 """
 
+import re
 import time
 
 import pandas as pd
+import requests as req
 from pytrends.request import TrendReq
 from loguru import logger
 
 from db import db
 from etsy_api import etsy_client
+
+# Terms that signal non-product intent — skip these suggestions
+_NOISE_PATTERNS = re.compile(
+    r"\b(recipe|near me|how to|what is|where to|tutorial|course|class|salary|job|wiki)\b",
+    re.IGNORECASE,
+)
 
 
 class TrendAnalyzer:
@@ -172,28 +180,94 @@ class EtsyResearcher:
             logger.error(f"Etsy research error for '{keyword}': {e}")
             return {"listing_count": 0, "avg_price": 0, "avg_favorites": 0}
 
-    def get_autocomplete_suggestions(self, prefix: str) -> list[str]:
+    def get_autocomplete_suggestions(self, keyword: str) -> list[str]:
         """
-        Get Etsy search autocomplete suggestions.
-        This reveals what real buyers are typing.
+        Gather keyword suggestions from multiple free sources:
+        1. Google Web autocomplete (bare + trailing space + letter expansion a-e)
+        2. Google Shopping autocomplete (buyer intent)
+        3. Bing autocomplete
 
-        Note: This uses a public endpoint, not the official API.
-        Use responsibly with delays between requests.
+        Returns deduplicated, noise-filtered list of suggestions.
         """
-        import requests as req
+        all_suggestions = []
 
+        # 1. Google Web — bare keyword
+        bare = self._google_autocomplete(keyword)
+        logger.debug(f"[{keyword}] Google web (bare): {len(bare)} results")
+        all_suggestions.extend(bare)
+        time.sleep(1)
+
+        # Google Web — trailing space (triggers more suggestions)
+        spaced = self._google_autocomplete(f"{keyword} ")
+        logger.debug(f"[{keyword}] Google web (trailing space): {len(spaced)} results")
+        all_suggestions.extend(spaced)
+        time.sleep(1)
+
+        # Google Web — letter expansion a-e
+        for letter in "abcde":
+            expanded = self._google_autocomplete(f"{keyword} {letter}")
+            all_suggestions.extend(expanded)
+            time.sleep(1)
+        logger.debug(f"[{keyword}] Google web (a-e expansion): collected {len(all_suggestions) - len(bare) - len(spaced)} from 5 letters")
+
+        # 2. Google Shopping autocomplete
+        google_shop = self._google_autocomplete(keyword, ds="sh")
+        logger.debug(f"[{keyword}] Google shopping: {len(google_shop)} results")
+        all_suggestions.extend(google_shop)
+        time.sleep(1)
+
+        # 3. Bing autocomplete
+        bing = self._bing_autocomplete(keyword)
+        logger.debug(f"[{keyword}] Bing: {len(bing)} results")
+        all_suggestions.extend(bing)
+        time.sleep(1)
+
+        # Deduplicate and filter noise
+        seen = set()
+        filtered = []
+        for s in all_suggestions:
+            s_lower = s.lower().strip()
+            if s_lower and s_lower not in seen and not _NOISE_PATTERNS.search(s_lower):
+                seen.add(s_lower)
+                filtered.append(s_lower)
+
+        logger.debug(
+            f"[{keyword}] {len(all_suggestions)} raw -> {len(filtered)} after dedup + noise filter"
+        )
+        return filtered
+
+    @staticmethod
+    def _google_autocomplete(query, ds=None):
+        """Fetch suggestions from Google Suggest API."""
         try:
-            url = "https://www.etsy.com/api/v3/ajax/search/suggest"
-            params = {"q": prefix, "type": "all"}
-            headers = {"User-Agent": "Mozilla/5.0"}
-            response = req.get(url, params=params, headers=headers, timeout=10)
-
+            params = {"client": "firefox", "q": query}
+            if ds:
+                params["ds"] = ds
+            response = req.get(
+                "https://suggestqueries.google.com/complete/search",
+                params=params,
+                timeout=10,
+            )
             if response.status_code == 200:
-                data = response.json()
-                return [s.get("query", "") for s in data.get("queries", [])]
+                return response.json()[1]
         except Exception as e:
-            logger.debug(f"Autocomplete error for '{prefix}': {e}")
+            label = f"shopping (ds={ds})" if ds else "web"
+            logger.debug(f"Google {label} autocomplete error for '{query}': {e}")
+        return []
 
+    @staticmethod
+    def _bing_autocomplete(query):
+        """Fetch suggestions from Bing Autosuggest API (no auth needed)."""
+        try:
+            response = req.get(
+                "https://api.bing.com/osjson.aspx",
+                params={"query": query},
+                timeout=10,
+            )
+            if response.status_code == 200:
+                return response.json()[1]
+        except Exception as e:
+            logger.debug(f"Bing autocomplete error for '{query}': {e}")
         return []
 
 
@@ -283,32 +357,83 @@ class NicheFinder:
         results.sort(key=lambda x: x["opportunity_score"], reverse=True)
         return results
 
-    def discover_keywords(self, seed_keywords: list[str]) -> list[str]:
+    # Modifiers for automatic seed expansion
+    _PREFIXES = ["watercolor", "hand painted", "vintage", "boho"]
+    _SUFFIXES = [
+        "clipart", "png", "bundle", "set", "collection",
+        "digital download", "commercial use",
+    ]
+
+    def discover_keywords(self, seed_keywords: list[str], existing_keywords: set[str] | None = None) -> list[str]:
         """
-        Expand seed keywords using Etsy autocomplete + Google related queries.
-        Great for finding long-tail niche terms.
+        Expand seed keywords using autocomplete + Google related queries.
+
+        Before querying external sources, generates modifier combinations
+        (prefix + seed, seed + suffix) as additional seeds.
         """
         discovered = set()
+        existing = existing_keywords or set()
 
+        # Generate modifier variations from original seeds
+        expanded_seeds = list(seed_keywords)
+        variations = set()
         for seed in seed_keywords:
-            # Etsy autocomplete
-            suggestions = self.etsy.get_autocomplete_suggestions(seed)
-            discovered.update(suggestions)
-            time.sleep(1)
+            seed_lower = seed.lower().strip()
+            for prefix in self._PREFIXES:
+                combo = f"{prefix} {seed_lower}"
+                if combo not in existing and combo != seed_lower and not seed_lower.startswith(prefix):
+                    variations.add(combo)
+            for suffix in self._SUFFIXES:
+                combo = f"{seed_lower} {suffix}"
+                if combo not in existing and combo != seed_lower and not seed_lower.endswith(suffix):
+                    variations.add(combo)
 
-            # Google related queries
+        # Add variations directly to discovered pool (they're keyword ideas themselves)
+        discovered.update(variations)
+        # Also use a subset as extra autocomplete seeds (limit to avoid rate-limit explosion)
+        extra_seeds = sorted(variations)[:10]
+        expanded_seeds.extend(extra_seeds)
+        logger.debug(
+            f"Modifier expansion: {len(variations)} variations generated, "
+            f"{len(extra_seeds)} used as extra autocomplete seeds"
+        )
+
+        for seed in expanded_seeds:
+            before_count = len(discovered)
+
+            # Multi-source autocomplete (Google Web/Shopping/Bing)
+            suggestions = self.etsy.get_autocomplete_suggestions(seed)
+            logger.debug(f"[{seed}] Autocomplete: {len(suggestions)} suggestions")
+            discovered.update(suggestions)
+
+            # Google related queries via pytrends
             related = self.trends.get_related_queries(seed)
+            rising = []
+            top_queries = []
             if "rising" in related and related["rising"] is not None:
                 rising = related["rising"]["query"].tolist()
                 discovered.update(rising)
             if "top" in related and related["top"] is not None:
-                top = related["top"]["query"].tolist()
-                discovered.update(top)
+                top_queries = related["top"]["query"].tolist()
+                discovered.update(top_queries)
+            logger.debug(
+                f"[{seed}] Google related: {len(rising)} rising, {len(top_queries)} top"
+            )
             time.sleep(2)
 
-        # Remove seeds from discovered
-        discovered -= set(seed_keywords)
+            new_from_seed = len(discovered) - before_count
+            all_from_seed = set(suggestions) | set(rising) | set(top_queries)
+            dupes = all_from_seed & (existing | set(expanded_seeds))
+            logger.debug(
+                f"[{seed}] {len(dupes)} duplicates of existing/seeds, "
+                f"{new_from_seed} genuinely new added to pool"
+            )
+
+        # Remove all seeds (original + expanded) from discovered
+        discovered -= set(expanded_seeds) | set(seed_keywords)
+        genuinely_new = discovered - existing
         logger.info(
-            f"Discovered {len(discovered)} new keywords from {len(seed_keywords)} seeds"
+            f"Discovered {len(discovered)} total, {len(genuinely_new)} genuinely new "
+            f"from {len(seed_keywords)} seeds (+{len(extra_seeds)} expanded)"
         )
         return sorted(discovered)
